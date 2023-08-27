@@ -4,13 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
-
-
- 
-  
-  
-
-
+using UnityEngine.Serialization;
 
 
 // Control spawning at first in editor, behavior in runtime
@@ -34,7 +28,7 @@ public class PixelController : MonoBehaviour
 
 
     [Header("Spawn Settings")]
-    public float pixelsPerBoundsSize = 1;
+    public float pixelsPerBoundsUnit = 1;
     public float spaceBetweenPixels = 0.7f;
 
     [Header("Tipping Settings")] 
@@ -178,7 +172,7 @@ public class PixelController : MonoBehaviour
       Vector3 planeSize = spawnPlane.GetComponent<Renderer>().bounds.size;
 
       // calculate number of pixels to spawn in x (length)
-      int pixelsToSpawnX = Mathf.CeilToInt(planeSize.x * pixelsPerBoundsSize);
+      int pixelsToSpawnX = Mathf.CeilToInt(planeSize.x * pixelsPerBoundsUnit);
       // calculate new scale for the pixels
       float newPixelScale = (planeSize.x - spaceBetweenPixels * (pixelsToSpawnX - 1)) / pixelsToSpawnX;
       // calculate number of pixels to spawn in z (width) based on newPixelScale
