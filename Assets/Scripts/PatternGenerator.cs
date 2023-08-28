@@ -106,6 +106,7 @@ public class PatternGenerator : MonoBehaviour
     private void UpdatePixels()
     {
         PixelController controller = PixelController.Instance;
+        controller.ResetTipState();
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
@@ -117,9 +118,31 @@ public class PatternGenerator : MonoBehaviour
                 float diff = a_value - b_value;
 
                 // Map the difference to a tipping state value between 0 and 5
-                int tippingState = Mathf.RoundToInt(Mathf.Lerp(0, 5, diff));
+                int tippingStateInt = Mathf.RoundToInt(Mathf.Lerp(0, 5, diff));
 
-                controller.GetPixel(x, y).SetTippingState(tippingState);
+                float tippingState;
+                /*switch (tippingStateInt)
+                {
+                    case 0: tippingState = controller.foldState0; break;
+                    case 1: tippingState = controller.foldState1; break;
+                    case 2: tippingState = controller.foldState2; break;
+                    case 3: tippingState = controller.foldState3; break;
+                    case 4: tippingState = controller.foldState4; break;
+                    case 5: tippingState = controller.foldState5; break;
+                    default: tippingState = controller.foldState0; break;
+                }*/
+                switch (tippingStateInt)
+                {
+                    case 0: tippingState = controller.foldState0; break;
+                    case 1: tippingState = controller.foldState0; break;
+                    case 2: tippingState = controller.foldState0; break;
+                    case 3: tippingState = controller.foldState1; break;
+                    case 4: tippingState = controller.foldState1; break;
+                    case 5: tippingState = controller.foldState1; break;
+                    default: tippingState = controller.foldState0; break;
+                }
+
+                controller.GetPixel(x, y).SetFoldState(tippingState);
             }
         }
     }

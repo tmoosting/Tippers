@@ -87,7 +87,7 @@ public class ReactionDiffusion : MonoBehaviour
                 colorValue = Mathf.Clamp(colorValue, -1.0f, 1.0f);
 
                 int tippingState = Mathf.RoundToInt(Mathf.Lerp(0, 4, (colorValue + 1) / 2));
-                PixelController.Instance.GetPixel(x, y).SetTippingState(tippingState);
+                PixelController.Instance.GetPixel(x, y).SetFoldState(tippingState);
             }
         }
 

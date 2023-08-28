@@ -13,12 +13,13 @@ public class ControlUI : MonoBehaviour
     private UIDocument uiDocument;
     private VisualElement window;
     private VisualElement content;
-    
-    
-    private BlueTextField trafficRateTextField; 
+     
+    private BlueTextField trafficRateTextField;
+    public Label trafficLabel;
     private Slider speedSlider;
-    private Toggle shiftToggle;
+    public Toggle shiftToggle;
     private Button createPatternButton;
+    public Button tipButton;
 
     void Start()
     {
@@ -37,10 +38,29 @@ public class ControlUI : MonoBehaviour
         content.style.marginLeft = 3f;
         content.style.marginRight = 5f;
 
+        VisualElement tipRow = new VisualElement();
+        tipRow.style.flexDirection = new StyleEnum<FlexDirection>(FlexDirection.Row);
+        tipRow.style.justifyContent = new StyleEnum<Justify>(Justify.SpaceBetween);
+        
         trafficRateTextField = new BlueTextField(this);
         trafficRateTextField.label = "Traffic per Minute"; 
-        trafficRateTextField.style.marginTop = 4f; 
-     //   content.Add(trafficRateTextField);
+        trafficRateTextField.style.marginTop = 4f;
+        trafficRateTextField.style.minWidth = 220f;
+        trafficRateTextField.RegisterValueChangedCallback(TrafficChange);
+        tipRow.Add(trafficRateTextField);
+
+        trafficLabel = new Label();
+        trafficLabel.text = "0/" + PixelController.Instance.trafficPerTip;
+        trafficLabel.style.marginLeft = 6f;
+        tipRow.Add(trafficLabel);
+
+        tipButton = new Button();
+        tipButton.text = "TIP";
+        tipButton.clicked += ClickTipButton;
+        tipButton.style.marginLeft = 6f;
+        tipButton.style.width = 80f;
+        tipRow.Add(tipButton);
+        content.Add(tipRow);
 
         shiftToggle = new Toggle();
         shiftToggle.label = "Shift";
@@ -98,6 +118,25 @@ public class ControlUI : MonoBehaviour
         content.Add(loadRow);
 
         window.Add(content);
+    }
+
+    private void TrafficChange(ChangeEvent<string> evt)
+    {
+        if (evt.newValue == "")
+        {
+            PixelController.Instance.trafficRate = 0;
+            return;
+        }
+        int outValue = 0;
+        if (int.TryParse(evt.newValue, out outValue))
+            PixelController.Instance.trafficRate = outValue;
+        else
+            PixelController.Instance.trafficRate = 0; 
+    }
+
+    private void ClickTipButton()
+    { 
+        PixelController.Instance.Tip(); 
     }
 
     private void ClickLoadButton(int i)

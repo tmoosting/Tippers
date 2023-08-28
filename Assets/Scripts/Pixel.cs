@@ -25,10 +25,8 @@ public class Pixel : MonoBehaviour
         else
             HandleDefaultMovement();
 
-        CheckForReverse();
-
+        CheckForReverse(); 
     }
-
     private void HandleForcedMovement()
     {
         float increment = Time.deltaTime * PixelController.Instance.forcedSpeed;
@@ -38,8 +36,7 @@ public class Pixel : MonoBehaviour
         else
             Progress(increment);
 
-    }
-
+    } 
     private void HandleDefaultMovement()
     {
         float increment = Time.deltaTime * PixelController.Instance.defaultSpeed;
@@ -47,22 +44,50 @@ public class Pixel : MonoBehaviour
         if (reversing)
             Regress(increment);
         else
-            Progress(increment); 
-        
+            Progress(increment);
     }
-    private Coroutine animateCoroutine;
 
-    public void AnimateTippingState(float targetTippingState, float duration)
+
+    public bool IsFolded()
     {
-        if (animateCoroutine != null)
-        {
-            StopCoroutine(animateCoroutine);
-        }
+        float alembicTime = alembic.CurrentTime;
 
-        animateCoroutine = StartCoroutine(AnimateTippingStateCoroutine(targetTippingState, duration));
+        bool returnValue = false;
+        if (PixelController.Instance.tipped == true) // tipped has already been updated before this check
+        {
+            if (Mathf.Abs(alembicTime - PixelController.Instance.foldState0) <
+                Mathf.Abs(alembicTime - PixelController.Instance.foldState1))
+                returnValue =  false;
+            else
+                returnValue =  true;
+        }
+        else
+        {
+            if (Mathf.Abs(alembicTime - PixelController.Instance.foldState5) <
+                Mathf.Abs(alembicTime - PixelController.Instance.foldState4))
+                returnValue =  false;
+            else
+                returnValue =  true;
+            
+        }
+     //   Debug.Log(returnValue +"pixel has time: " + alembicTime + " abs1: " + Mathf.Abs(alembicTime - PixelController.Instance.foldState0)  + " abs2: " +Mathf.Abs(alembicTime - PixelController.Instance.foldState1) );
+
+        return returnValue;
+    }
+    
+    
+    
+    
+    private Coroutine animateCoroutine;
+    public void AnimateFoldState(float targetTippingState, float duration)
+    { 
+        if (animateCoroutine != null)
+            StopCoroutine(animateCoroutine);
+
+        animateCoroutine = StartCoroutine(AnimateFoldStateCoroutine(targetTippingState, duration));
     }
 
-private IEnumerator AnimateTippingStateCoroutine(float targetState, float duration)
+private IEnumerator AnimateFoldStateCoroutine(float targetState, float duration)
 {
     float startState = alembic.CurrentTime;
     float elapsedTime = 0f;
@@ -84,44 +109,17 @@ private IEnumerator AnimateTippingStateCoroutine(float targetState, float durati
             reversing = !reversing;
     }
 
-    public void Progress(float amount)
-    {
-        alembic.CurrentTime += amount;
-    }
+  
 
-    public void Regress(float amount)
-    {
-        alembic.CurrentTime -= amount;
-
-    }
-
-    public void SetTippingState(float state)
+    public void SetFoldState(float state)
     {
 //        Debug.Log("Set to " + state);
         alembic.CurrentTime = state;
     }
 
-    private void OnMouseEnter()
-    {
-        isHovered = true;
-    }
+  
 
-    private void OnMouseExit()
-    {
-        isHovered = false;
-    }
-
-    private void OnMouseDown()
-    {
-        forceMovement = true;
-
-    }
-    private void OnMouseUp()
-    {
-        forceMovement = false;
-    }
-
-    public float GetTippingState()
+    public float GetFoldState()
     {
         return alembic.CurrentTime;
     }
@@ -154,6 +152,38 @@ private IEnumerator AnimateTippingStateCoroutine(float targetState, float durati
         { 
             renderer.material = PixelController.Instance.stateMaterialDefault;
         }
+    }
+    
+    private void OnMouseEnter()
+    {
+        isHovered = true;
+    }
+
+    private void OnMouseExit()
+    {
+        isHovered = false;
+    }
+
+    private void OnMouseDown()
+    {
+        forceMovement = true;
+
+    }
+    private void OnMouseUp()
+    {
+        forceMovement = false;
+    }
+    
+    
+    public void Progress(float amount)
+    {
+        alembic.CurrentTime += amount;
+    }
+
+    public void Regress(float amount)
+    {
+        alembic.CurrentTime -= amount;
+
     }
 
 }
