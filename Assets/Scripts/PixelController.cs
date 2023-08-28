@@ -6,13 +6,14 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.Serialization;
 
+// 3 states
+// Tipping, PatternShift (plus how it changes subshift), SideShift
+// patroon maakt hem stabieler
+// progress door patronen heen, en blijf hange, make soem flutter, add sideward shift, either during or alternate
 
-// tip state logic
 
-// tip state indicator
-// tip force button
-// traffic rate, ascend and descend
-
+// pattern within blank state A
+// on blank sate B, all the way to even 5 all of them
 
 public class PixelController : MonoBehaviour
 {

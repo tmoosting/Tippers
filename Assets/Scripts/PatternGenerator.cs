@@ -121,7 +121,7 @@ public class PatternGenerator : MonoBehaviour
                 int tippingStateInt = Mathf.RoundToInt(Mathf.Lerp(0, 5, diff));
 
                 float tippingState;
-                /*switch (tippingStateInt)
+                switch (tippingStateInt)
                 {
                     case 0: tippingState = controller.foldState0; break;
                     case 1: tippingState = controller.foldState1; break;
@@ -130,8 +130,8 @@ public class PatternGenerator : MonoBehaviour
                     case 4: tippingState = controller.foldState4; break;
                     case 5: tippingState = controller.foldState5; break;
                     default: tippingState = controller.foldState0; break;
-                }*/
-                switch (tippingStateInt)
+                }
+                /*switch (tippingStateInt)
                 {
                     case 0: tippingState = controller.foldState0; break;
                     case 1: tippingState = controller.foldState0; break;
@@ -140,7 +140,7 @@ public class PatternGenerator : MonoBehaviour
                     case 4: tippingState = controller.foldState1; break;
                     case 5: tippingState = controller.foldState1; break;
                     default: tippingState = controller.foldState0; break;
-                }
+                }*/
 
                 controller.GetPixel(x, y).SetFoldState(tippingState);
             }
