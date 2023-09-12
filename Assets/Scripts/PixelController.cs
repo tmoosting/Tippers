@@ -3,17 +3,16 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-// 3 states
-// Tipping, PatternShift (plus how it changes subshift), SideShift
-// patroon maakt hem stabieler
-// progress door patronen heen, en blijf hange, make soem flutter, add sideward shift, either during or alternate
-
-
-// pattern within blank state A
-// on blank sate B, all the way to even 5 all of them
+// CPS change per second: how often per second the Pixels move towards their goal
+// Tickers per Pattern: how many GameTicks are needed to call a pattern move
+// Ticks slider: change time between patterns
+// PatternChangeIntermission: seconds of pause in between
+// Pixels calculate how much time they have to move from current to goalstate, and do that much
+ 
 
 public class PixelController : MonoBehaviour
 {
@@ -24,6 +23,7 @@ public class PixelController : MonoBehaviour
     [Header("Assigns")] 
     public ControlUI controlUI;
     public GameObject pixelPrefab;
+    public GameObject blackPlane;
     public Transform pixelParent;
     public Material stateMaterialDefault;
     public Material stateMaterial0;
@@ -38,7 +38,12 @@ public class PixelController : MonoBehaviour
     public float pixelsPerBoundsUnit = 1;
     public float spaceBetweenPixels = 0.7f;
 
-    [Header("Tipping Settings")] 
+    [Header("Shifting")] 
+    public bool PixelAutoChanges = false;
+    public float PixelMovementPerSecond = 10;
+    public float TicksPerPattern = 5; // how many game ticks before a pattern change call is made
+    public float PatternChangeIntermission = 2; // time in seconds to delay when calling new pattern-set
+    
     public float foldState0;
     public float foldState1;
     public float foldState2;
@@ -50,55 +55,96 @@ public class PixelController : MonoBehaviour
     public float forcedSpeed = .5f;
     public float tippingPoint = 2.5f; //  between 0 and 5
 
+    // fold ticks
+    public float TicksPerSecond = 1; // manual adjusted game speed 
+    private float timeBetweenTicks;
+    private float nextTickTime; 
 
-    public bool Shift;
+    // traffic ticks
+    private float trafficTimer = 0.0f;
+    private float trafficTriggerTime = 1.0f; // in seconds
     
-    List<Pixel> pixelList = new List<Pixel>(); 
-    public Pixel[,] pixelArray; // 2D array of pixels 
+    
+    public bool ShiftPattern;
+    public bool ShiftSideways;
+    public Dictionary<int, bool> savePresence = new Dictionary<int, bool>(); 
+    public Pixel[,] pixelArray; // 2D array of pixels  
+    
+    private  List<Pixel> pixelList = new List<Pixel>(); 
+
     private SpawnPlane spawnPlane;
 
     private int trafficPassed = 0;
 
 
+
   [HideInInspector] public bool tipped = false;
   [HideInInspector] public int trafficRate = 0;
+  [HideInInspector]   public int currentPattern = 99;
+
   
   private void Awake()
   {
       Instance = this;
+      VerifyLoadFiles();
+
   }
 
   private void Start()
   {
+      shiftTicksCounter = 0;
+      currentPattern = 99;
       timeBetweenTicks = 1f / TicksPerSecond;
       nextTickTime = Time.time;
       spawnPlane = FindObjectOfType<SpawnPlane>();
-      spawnPlane.GetComponent<MeshRenderer>().enabled = false;
-        SpawnPixels();
-  }
-
-  // fold ticks
-  public float TicksPerSecond = 1;
-  private float timeBetweenTicks;
-  private float nextTickTime; 
-
-  // traffic ticks
-  private float trafficTimer = 0.0f;
-  private float trafficTriggerTime = 1.0f; // in seconds
+      spawnPlane.GetComponent<MeshRenderer>().enabled = false;  
+       
+      SpawnPixels();
+      FlipSideways();
+  } 
   
-  private void Update()
+  private float frameCounter = 0; 
+  void Update()
   {
+      // Trigger Pixels x times per second (ChangesPerSecond)
+      if (PixelAutoChanges)
+      {
+          frameCounter += Time.deltaTime * PixelMovementPerSecond; 
+          if (frameCounter >= 1)
+          {
+              foreach (var pixel in pixelList)
+                  pixel.ChangeTowardsGoal();
+              frameCounter--; 
+          }
+      }
+ 
+      
+      // Trigger Field State checks every Tick
+      if (Time.time >= nextTickTime)
+      {
+          ShiftTick();
+          nextTickTime = Time.time + timeBetweenTicks;
+      }
+      
       trafficTimer += Time.deltaTime;
       if(trafficTimer >= trafficTriggerTime)
       {
           trafficTimer = 0.0f;
           CountTraffic();
       }
+      #region KeyInput
       if (Input.GetKeyUp(KeyCode.P))
           ToggleColors();
-      
+      if (Input.GetKeyUp(KeyCode.T))
+          ToggleWindow();
       if (Input.GetKeyUp(KeyCode.M))
-          FlipBoard();
+          FlipBoard(); 
+      if (Input.GetKeyUp(KeyCode.N))
+          blackPlane.SetActive(!blackPlane.activeSelf);
+      if (Input.GetKeyUp(KeyCode.O))
+          FlipForward();
+      if (Input.GetKeyUp(KeyCode.I))
+          FlipBackward();
       if (Input.GetKey(KeyCode.Alpha0))
           TipHoveredPixels(foldState0);
       if (Input.GetKey(KeyCode.Alpha1))
@@ -111,13 +157,160 @@ public class PixelController : MonoBehaviour
           TipHoveredPixels(foldState4);
       if (Input.GetKey(KeyCode.Alpha5))
           TipHoveredPixels(foldState5);
-      
-      if (Shift)
-          if (Time.time >= nextTickTime)
+      #endregion
+  
+  }
+  private void FlipForward()
+  {
+      int height = pixelArray.GetLength(1);
+      int width = pixelArray.GetLength(0);
+ 
+      for (int y = 0; y < height; y++)
+      {
+          for (int x = width-1; x >= 0; x--)
           {
-              ShiftTick();
-              nextTickTime = Time.time + timeBetweenTicks;
+              Pixel currentPixel = pixelArray[x, y];
+              
+              currentPixel.AnimateFoldState(5, timeBetweenTicks);
           }
+      } 
+  }
+  private void FlipBackward()
+  {
+      int height = pixelArray.GetLength(1);
+      int width = pixelArray.GetLength(0);
+ 
+      for (int y = 0; y < height; y++)
+      {
+          for (int x = width-1; x >= 0; x--)
+          {
+              Pixel currentPixel = pixelArray[x, y];
+              
+              currentPixel.AnimateFoldState(0, timeBetweenTicks);
+          }
+      } 
+  }
+
+
+
+
+  private int shiftTicksCounter = 0;
+  private void ShiftTick()
+  {
+
+      if (ShiftSideways)
+          ShiftPixelsSideways();
+      //todo if sideways do sideways, but without coroutine
+
+      if (ShiftPattern)
+      {
+          shiftTicksCounter++;
+          if (shiftTicksCounter >= TicksPerPattern)
+          {
+              MakePatternChange();
+              shiftTicksCounter = 0;
+          }
+      } 
+  }
+
+  public void MakePatternChange()
+  {
+      //Debug.Log("CHANGE FROM " + currentPattern);
+      if (currentPattern == 99)  // At starting pattern
+          CallPattern(0);
+      else  if (currentPattern == 4) // at final pattern
+          CallPattern(0);
+      else if (savePresence[currentPattern + 1] == true) // next pattern available
+          CallPattern(currentPattern + 1);
+      else
+          CallPattern(0);
+  }
+
+  private void CallPattern(int i)
+  {
+      currentPattern = i;
+      StartCoroutine(SetPatternWithDelay(i));
+      
+  }
+
+  private IEnumerator SetPatternWithDelay(int i)
+  {
+    //  Debug.Log("Pause 0 ");
+      yield return new WaitForSeconds(PatternChangeIntermission);
+  //    Debug.Log("Pause 1 ");
+      SetPixelDataFromFile(i);
+  }
+
+  private void SetPixelDataFromFile(int i)
+  {
+      string path = "Assets/Saves/save" + i + ".json"; 
+      string json = File.ReadAllText(path);  
+      PixelDataList wrapper = JsonUtility.FromJson<PixelDataList>(json);
+      List<PixelData> pixelDataList = wrapper.list; 
+      int width = pixelArray.GetLength(0);
+      int height = pixelArray.GetLength(1);
+ 
+      for (int x = 0; x < width; x++)
+      {
+          for (int y = 0; y < height; y++)
+          {
+              PixelData pixelData = pixelDataList[x * height + y];
+              pixelArray[x, y].SetTargetTimeState(pixelData.CurrentTime);
+          }
+      } 
+  }
+  private void ShiftPixelsSideways()
+  {
+      int height = pixelArray.GetLength(1);
+      int width = pixelArray.GetLength(0);
+
+      // Store the right-most column of pixels to use it for wrapping
+      Pixel[] rightMostColumn = new Pixel[height];
+      for (int y = 0; y < height; y++)
+      {
+          rightMostColumn[y] = pixelArray[width - 1, y];
+      }
+
+      // Shift all pixels to the right
+      for (int y = 0; y < height; y++)
+      {
+          for (int x = width - 1; x >= 1; x--)
+          {
+              Pixel currentPixel = pixelArray[x, y];
+              Pixel leftPixel = pixelArray[x - 1, y];
+
+              // Set the tipping state of the current pixel to the tipping state of the left pixel
+              //    currentPixel.SetTippingState(leftPixel.GetTippingState());
+              
+              currentPixel.AnimateFoldState(leftPixel.GetFoldState(), timeBetweenTicks);
+          }
+      }
+
+      // Set the left-most column to the values of the right-most column (wrap)
+      for (int y = 0; y < height; y++)
+      {
+          pixelArray[0, y].AnimateFoldState(rightMostColumn[y].GetFoldState(), timeBetweenTicks);
+      }
+  }
+  
+  private void VerifyLoadFiles()
+  {
+      savePresence = new Dictionary<int, bool>();
+      savePresence.Add(0,  File.Exists("Assets/Saves/save0.json"));
+      savePresence.Add(1,  File.Exists("Assets/Saves/save1.json"));
+      savePresence.Add(2,  File.Exists("Assets/Saves/save2.json"));
+      savePresence.Add(3,  File.Exists("Assets/Saves/save3.json"));
+      savePresence.Add(4,  File.Exists("Assets/Saves/save4.json")); 
+  }
+
+  private void FlipSideways()
+  {
+      transform.Rotate(new Vector3(90,0,90));
+  }
+
+  private void ToggleWindow()
+  {  
+      controlUI.ShowWindow(!controlUI.showWindow);
   }
 
   private void CountTraffic()
@@ -145,7 +338,7 @@ public class PixelController : MonoBehaviour
   private void SetTipped(bool b)
   {
       tipped = b;
-      controlUI.shiftToggle.value = false;
+      controlUI.shiftSideToggle.value = false;
       
       foreach (var pixel in pixelList)
       {
@@ -201,39 +394,7 @@ public class PixelController : MonoBehaviour
       TicksPerSecond = newTicksPerSecond;
       timeBetweenTicks = 1f / TicksPerSecond;
   }
-  private void ShiftTick()
-  { 
-      int height = pixelArray.GetLength(1);
-      int width = pixelArray.GetLength(0);
-
-      // Store the right-most column of pixels to use it for wrapping
-      Pixel[] rightMostColumn = new Pixel[height];
-      for (int y = 0; y < height; y++)
-      {
-          rightMostColumn[y] = pixelArray[width - 1, y];
-      }
-
-      // Shift all pixels to the right
-      for (int y = 0; y < height; y++)
-      {
-          for (int x = width - 1; x >= 1; x--)
-          {
-              Pixel currentPixel = pixelArray[x, y];
-              Pixel leftPixel = pixelArray[x - 1, y];
-
-              // Set the tipping state of the current pixel to the tipping state of the left pixel
-          //    currentPixel.SetTippingState(leftPixel.GetTippingState());
-              
-           currentPixel.AnimateFoldState(leftPixel.GetFoldState(), timeBetweenTicks);
-          }
-      }
-
-      // Set the left-most column to the values of the right-most column (wrap)
-      for (int y = 0; y < height; y++)
-      {
-          pixelArray[0, y].AnimateFoldState(rightMostColumn[y].GetFoldState(), timeBetweenTicks);
-      }
-  }
+ 
 
 
   public void SpawnPixels()
@@ -270,8 +431,10 @@ public class PixelController : MonoBehaviour
               position.z += j * (newPixelScale + spaceBetweenPixels) - planeSize.z / 2 + newPixelScale / 2;
               GameObject pixelObject = Instantiate(pixelPrefab, position, Quaternion.identity, pixelParent);
               pixelObject.transform.localScale = new Vector3(newPixelScale, newPixelScale, newPixelScale);
-              pixelArray[i, j] = pixelObject.GetComponent<Pixel>();
-              pixelList.Add(pixelObject.GetComponent<Pixel>());
+              Pixel pixel = pixelObject.GetComponent<Pixel>();
+              pixel.Initialize();
+              pixelArray[i, j] = pixel;
+              pixelList.Add(pixel);
           }
       }
   }
@@ -316,11 +479,14 @@ public class PixelController : MonoBehaviour
 
         // Write the JSON string to a file
         File.WriteAllText(path, json);
- 
+        savePresence[i] = true;
+        controlUI.RefreshWindow();
     }
+
 
     public void LoadFile(int i)
     {
+        currentPattern = i;
         string path = "Assets/Saves/save" + i + ".json";
 
         // Read the JSON string from the file
@@ -339,12 +505,10 @@ public class PixelController : MonoBehaviour
             for (int y = 0; y < height; y++)
             {
                 PixelData pixelData = pixelDataList[x * height + y];
-                pixelArray[x, y].alembic.CurrentTime = pixelData.CurrentTime;
+                pixelArray[x, y].SetStateFromLoad ( pixelData.CurrentTime);
             }
-        }
-
-        ToggleColors();
-
+        } 
+        ToggleColors(); 
     }
 
 

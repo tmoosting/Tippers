@@ -8,8 +8,8 @@ public class ControlUI : MonoBehaviour
 {
 
     public Color textFieldColor;
-    
-    
+
+    public bool showWindow = true;
     private UIDocument uiDocument;
     private VisualElement window;
     private VisualElement content;
@@ -17,18 +17,32 @@ public class ControlUI : MonoBehaviour
     private BlueTextField trafficRateTextField;
     public Label trafficLabel;
     private Slider speedSlider;
-    public Toggle shiftToggle;
+    public Toggle shiftPatternToggle;
+    public Toggle shiftSideToggle;
     private Button createPatternButton;
     public Button tipButton;
 
+    private List<Button> loadButtons;
+
+    
     void Start()
     {
         uiDocument = GetComponent<UIDocument>();
         window = uiDocument.rootVisualElement.Q("WindowBase");
 
         BuildWindow();
+        RefreshWindow();
     }
 
+    public void ShowWindow(bool show)
+    {
+        showWindow = show;
+        if (showWindow)
+            uiDocument.rootVisualElement.style.display = new StyleEnum<DisplayStyle>(DisplayStyle.Flex);
+        else
+            uiDocument.rootVisualElement.style.display = new StyleEnum<DisplayStyle>(DisplayStyle.None);
+
+    }
     private void BuildWindow()
     {
         content = new VisualElement();
@@ -62,11 +76,24 @@ public class ControlUI : MonoBehaviour
         tipRow.Add(tipButton);
         content.Add(tipRow);
 
-        shiftToggle = new Toggle();
-        shiftToggle.label = "Shift";
-        shiftToggle.style.marginTop = 4f;
-        shiftToggle.RegisterValueChangedCallback(evt => ToggleShift(evt));
-        content.Add(shiftToggle);
+        
+        VisualElement shiftRow = new VisualElement();
+        shiftRow.style.flexDirection = new StyleEnum<FlexDirection>(FlexDirection.Row);
+        shiftRow.style.justifyContent = new StyleEnum<Justify>(Justify.SpaceBetween);
+        shiftRow.style.marginTop = 4f;
+
+        shiftPatternToggle = new Toggle();
+        shiftPatternToggle.label = "Shift Pattern";
+        shiftPatternToggle.RegisterValueChangedCallback(evt => ToggleShiftPattern(evt));
+        shiftRow.Add(shiftPatternToggle); 
+        
+        shiftSideToggle = new Toggle();
+        shiftSideToggle.label = "Shift Sideways";
+        shiftSideToggle.RegisterValueChangedCallback(evt => ToggleShiftSideways(evt));
+        shiftRow.Add(shiftSideToggle);
+        
+        
+        content.Add(shiftRow);
 
         speedSlider = new Slider();
         speedSlider.label = "1 Tick per Second";
@@ -93,8 +120,9 @@ public class ControlUI : MonoBehaviour
         loadRow.style.flexDirection = new StyleEnum<FlexDirection>(FlexDirection.Row);
         loadRow.style.justifyContent = new StyleEnum<Justify>(Justify.SpaceBetween);
         loadRow.style.marginBottom = 6f;
- 
 
+
+        loadButtons = new List<Button>();
         for (int i = 0; i < 5; i++)
         {
            int saveIndex = i;
@@ -112,6 +140,7 @@ public class ControlUI : MonoBehaviour
             loadButton.text = "Load " + i;
             loadButton.clicked += () => { ClickLoadButton(saveIndex); };
             loadRow.Add(loadButton);
+            loadButtons.Add(loadButton);
         }
         
         content.Add(saveRow);
@@ -119,7 +148,16 @@ public class ControlUI : MonoBehaviour
 
         window.Add(content);
     }
-
+ 
+    public void RefreshWindow()
+    {
+        foreach (var loadButton in loadButtons)
+        {
+            loadButton.SetEnabled(PixelController.Instance.savePresence[loadButtons.IndexOf(loadButton)]);
+        }
+    }
+    
+    
     private void TrafficChange(ChangeEvent<string> evt)
     {
         if (evt.newValue == "")
@@ -141,8 +179,7 @@ public class ControlUI : MonoBehaviour
 
     private void ClickLoadButton(int i)
     {
-        PixelController.Instance.LoadFile(i);
-
+        PixelController.Instance.LoadFile(i); 
     }
 
     private void ClickSaveButton(int i)
@@ -150,9 +187,20 @@ public class ControlUI : MonoBehaviour
         PixelController.Instance.SaveToFile(i);
     }
 
-    private void ToggleShift(ChangeEvent<bool> evt)
+    private void ToggleShiftPattern(ChangeEvent<bool> evt)
     {
-        PixelController.Instance.Shift = evt.newValue;
+        if (evt.newValue == true)
+            if (PixelController.Instance.currentPattern == 99)
+                 PixelController.Instance.MakePatternChange();
+        PixelController.Instance.ShiftPattern = evt.newValue; 
+        
+        createPatternButton.SetEnabled(!evt.newValue);
+    }  
+    
+    private void ToggleShiftSideways(ChangeEvent<bool> evt)
+    {
+    
+        PixelController.Instance.ShiftSideways = evt.newValue;
         
         createPatternButton.SetEnabled(!evt.newValue);
     }

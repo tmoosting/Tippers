@@ -13,6 +13,11 @@ public class Pixel : MonoBehaviour
 
     [HideInInspector] public bool isHovered = false;
     [HideInInspector] public bool applyColor = false;
+
+    public float targetTimeState;
+    public float currentSpeed;
+    
+    
     
     private bool reversing = false;
     private bool forceMovement = false;
@@ -20,33 +25,53 @@ public class Pixel : MonoBehaviour
     
     private void Update()
     {
-        if (forceMovement)
+        /*if (forceMovement)
           HandleForcedMovement();
         else
             HandleDefaultMovement();
 
-        CheckForReverse(); 
-    }
-    private void HandleForcedMovement()
-    {
-        float increment = Time.deltaTime * PixelController.Instance.forcedSpeed;
-        
-        if (reversing)
-            Regress(increment);
-        else
-            Progress(increment);
-
-    } 
-    private void HandleDefaultMovement()
-    {
-        float increment = Time.deltaTime * PixelController.Instance.defaultSpeed;
-        
-        if (reversing)
-            Regress(increment);
-        else
-            Progress(increment);
+        CheckForReverse(); */
     }
 
+
+    public void Initialize()
+    {
+        targetTimeState = alembic.CurrentTime;
+
+    }  
+    public void SetStateFromLoad(float givenTime)
+    {
+        alembic.CurrentTime = givenTime;
+        targetTimeState = givenTime; 
+    }
+    public void SetTargetTimeState(float targetTime)
+    {
+        targetTimeState = targetTime;
+    }
+    public void ChangeTowardsGoal( )
+    {
+        if (Math.Abs(targetTimeState - alembic.CurrentTime) < 0.001f)
+            return;
+        float totalChangeDist = Mathf.Abs(targetTimeState - alembic.CurrentTime);
+        float totalSeconds = PixelController.Instance.TicksPerPattern / PixelController.Instance.TicksPerSecond;
+        float totalChanges = PixelController.Instance.PixelMovementPerSecond * totalSeconds;
+        float smallChange = totalChangeDist / totalChanges;
+        if (targetTimeState > alembic.CurrentTime)
+            alembic.CurrentTime += smallChange;
+        else
+            alembic.CurrentTime -= smallChange;
+        
+//        Debug.Log("pixel has totalChangeDist" +totalChangeDist+ " totalSeconds" +totalSeconds+ " totalChanges" +totalChanges+ " smallChange"+smallChange);
+        ApplyColor();
+        
+   //     alembic.CurrentTime = Mathf.Lerp(alembic.CurrentTime, alembic.CurrentTime +smallChange , 1/PixelController.Instance.PixelMovementPerSecond);
+
+        //lerp towards targetTimeState -  :
+        // calculate total amount of seconds available using PixelController.Instance.TicksPerPattern and PixelController.Instance.TicksPerSecond
+        // use PixelController.Instance.PixelMovementPerSecond to calculate how many total movements it has
+        // divide total distance by that 
+
+    }
 
     public bool IsFolded()
     {
@@ -99,15 +124,10 @@ private IEnumerator AnimateFoldStateCoroutine(float targetState, float duration)
         elapsedTime += Time.deltaTime;
         ApplyColor(); 
         yield return null;
-    }
-
+    } 
     alembic.CurrentTime = targetState;
 }
-    private void CheckForReverse()
-    {
-        if (alembic.CurrentTime >= alembic.Duration || alembic.CurrentTime <= 0)
-            reversing = !reversing;
-    }
+   
 
   
 
@@ -175,7 +195,14 @@ private IEnumerator AnimateFoldStateCoroutine(float targetState, float duration)
     }
     
     
-    public void Progress(float amount)
+    /*
+     
+      private void CheckForReverse()
+    {
+        if (alembic.CurrentTime >= alembic.Duration || alembic.CurrentTime <= 0)
+            reversing = !reversing;
+    }
+     public void Progress(float amount)
     {
         alembic.CurrentTime += amount;
     }
@@ -185,5 +212,29 @@ private IEnumerator AnimateFoldStateCoroutine(float targetState, float duration)
         alembic.CurrentTime -= amount;
 
     }
+    
+    
+    
+    private void HandleForcedMovement()
+    {
+        float increment = Time.deltaTime * PixelController.Instance.forcedSpeed;
+        
+        if (reversing)
+            Regress(increment);
+        else
+            Progress(increment);
 
+    } 
+    private void HandleDefaultMovement()
+    {
+        float increment = Time.deltaTime * PixelController.Instance.defaultSpeed;
+        
+        if (reversing)
+            Regress(increment);
+        else
+            Progress(increment);
+    }*/
+
+
+    
 }
